@@ -249,6 +249,16 @@ def remove_missing(fam, treat_dec_missing=False, keep_affected_dec=True):
     treat_dec_missing  -- whether to treat deceased individuals as potentially missing
     keep_affected_dec  -- whether to keep deceased individuals marked as affected
     """
+    missing = is_missing(fam, treat_dec_missing, keep_affected_dec)
+    new_fam = {'ped': fam['ped'], 'inds': []}
+    for ii, miss in enumerate(missing):
+        if not miss:
+            new_fam['inds'] += [fam['inds'][ii]]
+    new_fam['cov'] = subset_matrix(missing, fam['cov'], False)
+    return new_fam
+
+def is_missing(fam, treat_dec_missing=False, keep_affected_dec=True):
+    """Calculate list of which individual in the family are missing."""
     missing = np.array([False]*len(fam['inds']))
     for ii, ind in enumerate(fam['inds']):
         if ind.missing:
@@ -259,12 +269,7 @@ def remove_missing(fam, treat_dec_missing=False, keep_affected_dec=True):
                     missing[ii] = True
                 elif not keep_affected_dec:
                     missing[ii] = True
-    new_fam = {'ped': fam['ped'], 'inds': []}
-    for ii, miss in enumerate(missing):
-        if not miss:
-            new_fam['inds'] += [fam['inds'][ii]]
-    new_fam['cov'] = subset_matrix(missing, fam['cov'], False)
-    return new_fam
+    return missing
 
 def read_pedigree(fname, sep=","):
     """Read pedigrees from csv and calculate kinship matrix for each."""
@@ -339,3 +344,10 @@ def calc_all_comps(fam, YY_set):
             comp_set[key] = possible_dominant(fam, YY_set[ii,:])
         all_comps[ii] = comp_set[key]
     return np.array(all_comps)
+
+def get_fam(fams, fam_name):
+    """Return the family with a particular name from a list of family data."""
+    for fam in fams:
+        if fam['ped'] == fam_name:
+            return fam
+    return None
