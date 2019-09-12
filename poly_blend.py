@@ -163,7 +163,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
         else:
             key = repr(YY_set[ii,missing])
         if key not in prob_set.keys():
-            dom_compatible = possible_dominant(fam, YY_set[ii,:], missing=missing)
+            dom_compatible = possible_dominant_missing(fam, YY_set[ii,:], missing=missing)
             if not dom_compatible:
                 prob_set[key] = 0
             else:
