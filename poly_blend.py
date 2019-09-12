@@ -168,7 +168,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                 prob_set[key] = 0
             else:
                 if missing is None:
-                    prob_set[key] = threshold_prob(YY=YY_set[ii,missing],
+                    prob_set[key] = threshold_prob(YY=YY_set[ii,:],
                                                    index=index,
                                                    GG=GG,
                                                    beta=beta,
@@ -178,7 +178,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                                                    FF=FF,
                                                    TT=TT)
                 else:
-                    prob_set[key] = threshold_prob(YY=YY_set[ii,:],
+                    prob_set[key] = threshold_prob(YY=YY_set[ii,missing],
                                                    index=index,
                                                    GG=GG,
                                                    beta=beta,
