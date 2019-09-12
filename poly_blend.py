@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from tqdm import tqdm, tqdm_notebook
 from copy import deepcopy
+from itertools import product
 
 def subset_matrix(YY, FF, cond):
     """Return FF with rows and columns removed where YY doesnt match cond."""
@@ -149,20 +150,43 @@ def simulate_polygenic(FF, index, Y_index, Vp, h2, TT, mu, GG, beta, size=1):
             result_full[ii,ind] = result[ii,jj]
     return result, result_full
 
-def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT):
-    """Calculate a set of phenotype probabilities conditional on index phenotypes."""
+def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=None):
+    """Calculate a set of phenotype probabilities conditional on index phenotypes.
+    WARNING: if there is missing data you still need to pass the FULL family
+    and set of phenotypes (YY_set)
+    """
     all_probs = np.zeros(YY_set.shape[0])
     prob_set = {}
     for ii in range(YY_set.shape[0]):
-        key = repr(YY_set[ii,:])
+        if missing is None:
+            key = repr(YY_set[ii,:])
+        else:
+            key = repr(YY_set[ii,missing])
         if key not in prob_set.keys():
-            dom_compatible = possible_dominant(fam, YY_set[ii,:])
+            dom_compatible = possible_dominant(fam, YY_set[ii,:], missing=missing)
             if not dom_compatible:
                 prob_set[key] = 0
             else:
-                prob_set[key] = threshold_prob(YY=YY_set[ii,:], index=index, GG=GG,
-                                               beta=beta, mu=mu, Vp=Vp, h2=h2,
-                                               FF=FF, TT=TT)
+                if missing is None:
+                    prob_set[key] = threshold_prob(YY=YY_set[ii,missing],
+                                                   index=index,
+                                                   GG=GG,
+                                                   beta=beta,
+                                                   mu=mu,
+                                                   Vp=Vp,
+                                                   h2=h2,
+                                                   FF=FF,
+                                                   TT=TT)
+                else:
+                    prob_set[key] = threshold_prob(YY=YY_set[ii,:],
+                                                   index=index,
+                                                   GG=GG,
+                                                   beta=beta,
+                                                   mu=mu,
+                                                   Vp=Vp,
+                                                   h2=h2,
+                                                   FF=FF,
+                                                   TT=TT)
         all_probs[ii] = prob_set[key]
     return all_probs, prob_set
 
@@ -333,6 +357,22 @@ def possible_dominant(fam, YY):
         return False
     else:
         return True
+
+def possible_dominant_missing(fam, YY, missing=None):
+    """Ask whether there is a possible dominant transmission pattern
+    when some data are missing.
+    """
+    if missing is None:
+        return possible_dominant(fam, YY)
+
+    if possible_dominant(fam, YY):
+        return True
+    num_missing = np.sum(missing)
+    for poss_phen in product([0,1], repeat=num_missing):
+        YY[missing] = np.array(poss_phen)
+        if possible_dominant(fam, YY):
+            return True
+    return False
 
 def calc_all_comps(fam, YY_set):
     """Calculate dominant compatibilities within a family for a set of pheotypes."""
