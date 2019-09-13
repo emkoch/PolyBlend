@@ -155,6 +155,13 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
     WARNING: if there is missing data you still need to pass the FULL family
     and set of phenotypes (YY_set)
     """
+    if missing is not None:
+        if np.sum(missing) == (YY_set.shape[1]-len(index)):
+            # If every non-focal individual is missing, the conditional probability is
+            # not undefined, so None is the correct reponse.
+            print("All non-focal individuals missing, returning None")
+            return None, None
+        
     all_probs = np.zeros(YY_set.shape[0])
     prob_set = {}
     for ii in range(YY_set.shape[0]):
@@ -178,7 +185,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                                                    FF=FF,
                                                    TT=TT)
                 else:
-                    prob_set[key] = threshold_prob(YY=YY_set[ii,missing],
+                    prob_set[key] = threshold_prob(YY=YY_set[ii,~missing],
                                                    index=index,
                                                    GG=GG,
                                                    beta=beta,
