@@ -161,14 +161,14 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
             # not undefined, so None is the correct reponse.
             print("All non-focal individuals missing, returning None")
             return None, None
-        
+
     all_probs = np.zeros(YY_set.shape[0])
     prob_set = {}
     for ii in range(YY_set.shape[0]):
         if missing is None:
             key = repr(YY_set[ii,:])
         else:
-            key = repr(YY_set[ii,missing])
+            key = repr(YY_set[ii,~missing])
         if key not in prob_set.keys():
             dom_compatible = possible_dominant_missing(fam, YY_set[ii,:], missing=missing)
             if not dom_compatible:
@@ -397,4 +397,10 @@ def get_fam(fams, fam_name):
     for fam in fams:
         if fam['ped'] == fam_name:
             return fam
+    return None
+
+def get_fam_index(fams, fam_name):
+    for ii, fam in enumerate(fams):
+        if fam['ped'] == fam_name:
+            return ii
     return None
