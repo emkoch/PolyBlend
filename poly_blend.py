@@ -26,7 +26,7 @@ def subset_matrix(YY, FF, cond):
             ii += 1
     return result
 
-def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT):
+def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT, maxpts_mult=20000):
     """Calculate the probability of binary phenotypes in a pedigree, conditional on index individuals.
 
     Keyword arguments:
@@ -63,7 +63,7 @@ def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT):
     P1 = mvnormcdf(lower=lower_lims,
                    upper=upper_lims,
                    mu=means,
-                   cov=cov, maxpts=np.size(YY)*20000)
+                   cov=cov, maxpts=np.size(YY)*maxpts_mult)
 
     lower_lims_index = [xx for ii, xx in enumerate(lower_lims)
                         if ii in index]
@@ -150,7 +150,7 @@ def simulate_polygenic(FF, index, Y_index, Vp, h2, TT, mu, GG, beta, size=1):
             result_full[ii,ind] = result[ii,jj]
     return result, result_full
 
-def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=None):
+def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=None, maxpts_mult=20000):
     """Calculate a set of phenotype probabilities conditional on index phenotypes.
     WARNING: if there is missing data you still need to pass the FULL family
     and set of phenotypes (YY_set)
@@ -183,7 +183,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                                                    Vp=Vp,
                                                    h2=h2,
                                                    FF=FF,
-                                                   TT=TT)
+                                                   TT=TT, maxpts_mult=maxpts_mult)
                 else:
                     prob_set[key] = threshold_prob(YY=YY_set[ii,~missing],
                                                    index=index,
@@ -193,7 +193,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                                                    Vp=Vp,
                                                    h2=h2,
                                                    FF=FF,
-                                                   TT=TT)
+                                                   TT=TT, maxpts_mult=maxpts_mult)
         all_probs[ii] = prob_set[key]
     return all_probs, prob_set
 
@@ -356,7 +356,7 @@ def possible_dominant(fam, YY):
         if ii == 0:
             shared_parents += current_parents
         else:
-            for parent in shared_parents:
+            for parent in deepcopy(shared_parents):
                 if parent not in current_parents:
                     shared_parents.remove(parent)
 
