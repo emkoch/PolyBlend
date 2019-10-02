@@ -1,7 +1,9 @@
 from numpy.random import multivariate_normal
 from statsmodels.sandbox.distributions.extras import mvnormcdf
+from statsmodels.sandbox.distributions.extras import mvstdnormcdf
 from scipy.stats import norm
 from scipy.stats import truncnorm
+from scipy.stats import mvn
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,7 +28,7 @@ def subset_matrix(YY, FF, cond):
             ii += 1
     return result
 
-def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT, maxpts_mult=20000):
+def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT, maxpts_mult=20000, log_out=True, abseps=None, releps=None, genz=False):
     """Calculate the probability of binary phenotypes in a pedigree, conditional on index individuals.
 
     Keyword arguments:
@@ -60,10 +62,31 @@ def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT, maxpts_mult=20000):
     means = np.ones(np.size(YY))*mu + np.array(GG)*beta
     cov = Vp*h2*FF + Vp*(1-h2)*np.identity(np.size(YY))
 
-    P1 = mvnormcdf(lower=lower_lims,
-                   upper=upper_lims,
-                   mu=means,
-                   cov=cov, maxpts=np.size(YY)*maxpts_mult)
+    if genz:
+        # infin = np.zeros(len(lower_lims))
+        # for ii, lower_lim in enumerate(lower_lims):
+        #     if lower_lim == TT:
+        #         infin[ii] = 1
+        # correl = np.zeros(len(lower_lims)*(len(lower_lims)-1))
+        # error, P1, inform = mvn.mvndst(lower=lower_lims, upper=upper_lims,
+        #                                infin=infin, correl=cov)\
+        if abseps is None:
+            P1 = mvstdnormcdf(lower=lower_lims, upper=upper_lims, corrcoef=cov,
+                              maxpts=np.size(YY)*maxpts_mult)
+        else:
+            P1 = mvstdnormcdf(lower=lower_lims, upper=upper_lims, corrcoef=cov,
+                              maxpts=np.size(YY)*maxpts_mult, abseps=abseps)
+
+    if releps is None:
+        P1 = mvnormcdf(lower=lower_lims,
+                       upper=upper_lims,
+                       mu=means,
+                       cov=cov, maxpts=np.size(YY)*maxpts_mult)
+    else:
+        P1 = mvnormcdf(lower=lower_lims,
+                       upper=upper_lims,
+                       mu=means,
+                       cov=cov, maxpts=np.size(YY)*maxpts_mult, releps=releps)
 
     lower_lims_index = [xx for ii, xx in enumerate(lower_lims)
                         if ii in index]
@@ -91,7 +114,11 @@ def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT, maxpts_mult=20000):
                               loc=means_index[0],
                               scale=np.sqrt(cov_index[0,0]))
 
-    return np.log(P1) - np.log(P2) #(P1/P2)
+    if log_out:
+        return np.log(P1) - np.log(P2)
+    else:
+        return P1/P2
+
 
 def conditional_covariance(CC, index, not_index):
     """Calculate the covariance matrix of non-index individuals conditional on index."""
@@ -150,7 +177,7 @@ def simulate_polygenic(FF, index, Y_index, Vp, h2, TT, mu, GG, beta, size=1):
             result_full[ii,ind] = result[ii,jj]
     return result, result_full
 
-def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=None, maxpts_mult=20000):
+def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=None, maxpts_mult=20000, log_out=True):
     """Calculate a set of phenotype probabilities conditional on index phenotypes.
     WARNING: if there is missing data you still need to pass the FULL family
     and set of phenotypes (YY_set)
@@ -158,7 +185,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
     if missing is not None:
         if np.sum(missing) == (YY_set.shape[1]-len(index)):
             # If every non-focal individual is missing, the conditional probability is
-            # not undefined, so None is the correct reponse.
+            # not undefined, so None is the correct response.
             print("All non-focal individuals missing, returning None")
             return None, None
 
@@ -183,7 +210,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                                                    Vp=Vp,
                                                    h2=h2,
                                                    FF=FF,
-                                                   TT=TT, maxpts_mult=maxpts_mult)
+                                                   TT=TT, maxpts_mult=maxpts_mult, log_out=log_out)
                 else:
                     prob_set[key] = threshold_prob(YY=YY_set[ii,~missing],
                                                    index=index,
@@ -193,7 +220,7 @@ def calc_all_lambda(fam, YY_set, index, GG, beta, mu, Vp, h2, FF, TT, missing=No
                                                    Vp=Vp,
                                                    h2=h2,
                                                    FF=FF,
-                                                   TT=TT, maxpts_mult=maxpts_mult)
+                                                   TT=TT, maxpts_mult=maxpts_mult, log_out=log_out)
         all_probs[ii] = prob_set[key]
     return all_probs, prob_set
 
