@@ -26,13 +26,12 @@ def one_gen_fam_matrix(nn):
         result[nn+1, ii] = 0.5
     return result
 
-def gen_one_gen_probs(nn, h2, TT, FF, log_out=True, abs_err=1e-4):
+def gen_one_gen_probs(nn, h2, TT, FF, log_out=True, abs_err=1e-3, maxpts_mult=5e6):
     result = [np.zeros(nn+1), np.zeros(nn+1), np.zeros(nn+1)]
     for ii in range(3):
         for jj in range(nn+1):
             YY = np.array([1] + [1]*jj + [0]*(nn-jj) + [1]*ii + [0]*(2-ii))
             abseps = abs_err / (binom(2, ii)*binom(nn, jj)) / (3*(nn+1))
-            # print(abseps)
             result[ii][jj] = pb.threshold_prob(YY=YY,
                                                index=[0],
                                                GG=np.zeros(nn+3),
@@ -44,15 +43,15 @@ def gen_one_gen_probs(nn, h2, TT, FF, log_out=True, abs_err=1e-4):
                                                TT=TT,
                                                log_out=log_out,
                                                genz=True,
-                                               maxpts_mult=5e6,
+                                               maxpts_mult=maxpts_mult,
                                                abseps=abseps)
     return result
 
-def one_gen_ex(nn, h2, TT, abs_err=1e-4):
+def one_gen_ex(nn, h2, TT, abs_err=1e-4, maxpts_mult=5e6):
     if nn == 0:
         return None
     FF = one_gen_fam_matrix(nn+1)
-    probs = gen_one_gen_probs(nn, h2, TT, FF, abs_err=1e-5)
+    probs = gen_one_gen_probs(nn, h2, TT, FF, abs_err=abs_err, maxpts_mult=maxpts_mult)
     null_heights = []
     null_lambdas = []
     null_aff_off = []
@@ -71,8 +70,8 @@ def one_gen_ex(nn, h2, TT, abs_err=1e-4):
         mend_heights.append(p_binom.pmf(jj, nn, 0.5))
         mend_lambdas.append(np.exp(-probs[1][jj]))
         mend_aff_off.append(jj)
-    return (np.array(null_heights), np.array(null_lambdas),
-            np.array(mend_heights), np.array(mend_lambdas),
+    return (np.array(null_heights)/np.sum(null_heights), np.array(null_lambdas),
+            np.array(mend_heights)/np.sum(mend_heights), np.array(mend_lambdas),
             np.array(null_aff_off), np.array(mend_aff_off))
 
 def plot_one_gen_ex(nh, nl, mh, ml, ax):

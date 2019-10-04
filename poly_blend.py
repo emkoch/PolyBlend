@@ -351,32 +351,23 @@ def read_pedigree(fname, sep=","):
             print('problem in {}'.format(ii))
     return fams, passing
 
-def get_parents(anc_set):
-    """Get indicies of parents in an ancestor set."""
-    return [anc[0] for anc in anc_set if anc[1] == 1]
-
-def possible_dominant(fam, YY):
-    """Calculate whether compatible with dominant Mendelian transmission of a single allele.
-    given a family dictionary and binary phenotype vector.
-    """
+def possible_originators(fam, YY):
     inds = fam['inds']
     ancestor_sets = [get_ancestors(ii, inds, 0) for ii, _ in enumerate(inds)]
-    originator_set = []
+    originator_set = [] # originators are first individuals in ped to show phenotype
     for ii, anc_set in enumerate(ancestor_sets):
         if YY[ii] == 1:
-            if len(anc_set) == 0:
+            if len(anc_set) == 1: # affected founders are possible originators
                 originator_set.append(ii)
-            else:
+            else: # affected individuals with any affected parents are not originators
                 originator = True
-                for anc in anc_set:
+                for anc in anc_set: # if any parents are affected
                     if (anc[1] == 1) and (YY[anc[0]] == 1):
                         originator = False
                 if originator:
                     originator_set.append(ii)
-    if len(originator_set) == 0:
-        return False
-    if len(originator_set) == 1:
-        return True
+    if len(originator_set) < 2:
+        return originator_set
     shared_parents = []
     for ii, originator in enumerate(originator_set):
         current_parents = get_parents(ancestor_sets[originator])
@@ -386,8 +377,19 @@ def possible_dominant(fam, YY):
             for parent in deepcopy(shared_parents):
                 if parent not in current_parents:
                     shared_parents.remove(parent)
+    return shared_parents
 
-    if len(shared_parents) == 0:
+def get_parents(anc_set):
+    """Get indicies of parents in an ancestor set."""
+    return [anc[0] for anc in anc_set if anc[1] == 1]
+
+def possible_dominant(fam, YY):
+    """Calculate whether compatible with dominant Mendelian transmission of a single allele.
+    given a family dictionary and binary phenotype vector.
+    """
+
+    possible_mend_originators = possible_originators(fam, YY)
+    if len(possible_mend_originators) == 0:
         return False
     else:
         return True
