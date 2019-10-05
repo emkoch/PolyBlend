@@ -28,7 +28,8 @@ def subset_matrix(YY, FF, cond):
             ii += 1
     return result
 
-def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT, maxpts_mult=20000, log_out=True, abseps=None, releps=None, genz=False):
+def threshold_prob(YY, index, GG, beta, mu, Vp, h2, FF, TT,
+                   maxpts_mult=20000, log_out=True, abseps=None, releps=None, genz=False):
     """Calculate the probability of binary phenotypes in a pedigree, conditional on index individuals.
 
     Keyword arguments:
@@ -351,13 +352,67 @@ def read_pedigree(fname, sep=","):
             print('problem in {}'.format(ii))
     return fams, passing
 
+def get_parents(anc_set):
+    """Find tuples for parents in an ancestor set."""
+    result = []
+    for ii, anc in anc_set:
+        if anc[1] == 1:
+            result.append(ii)
+    return result
+
+def sim_given_originators(fam, YY):
+    """Simulate a phenotype vector under dominant Mendelian inheritance
+       by idnetifying potential originators and dropping genes."""
+    ## NOTE: this doesn't check that the proband value is correct
+    originators = possible_originators(fam, YY)
+    if len(originators) == 0:
+        return None
+    inds = fam['inds']
+    ancestor_sets = [get_ancestors(ii, inds, 0) for ii, _ in enumerate(inds)]
+    result = np.zeros(len(YY))
+    originator = np.random.choice(originators)
+    result[originator] = 1 # set originator to affected for simulation purposes
+    done = []
+    for ii, anc_set in enumerate(ancestor_sets):
+        if len(anc_set) == 1:
+            done.append(ii)
+    while len(done) < len(YY):
+        for ii, anc_set in enumerate(ancestor_sets):
+            if ii not in done:
+                parents = get_parents(anc_set)
+                all_parents = True
+                for parent in parents:
+                    if parent not in done:
+                        all_parents = False
+                if all_parents:
+                    for anc in anc_set:
+                        if (anc[1] == 1) and (result[anc[0]]==1):
+                            result[ii] = np.random.choice([0,1])
+                    done.append(ii)
+    result[originator] = YY[originator] # set originator back to data value
+    return result
+
+def sim_conditional(fam, YY, index, NN):
+    """Simulate N phenotype vectors identifying possible originators and
+       conditioning on index individuals"""
+    result = np.zeros((NN, len(YY)))
+    for ii in range(NN):
+        sim = sim_given_originators(fam, YY)
+        if sim is None:
+            return None
+        while np.sum(sim[index]) < len(index):
+            sim = sim_given_originators(fam, YY)
+        result[ii,:] = sim
+    return result
+
 def possible_originators(fam, YY):
+    """Locate the possible originators of a dominant mutation within a pedigree (0-2)"""
     inds = fam['inds']
     ancestor_sets = [get_ancestors(ii, inds, 0) for ii, _ in enumerate(inds)]
     originator_set = [] # originators are first individuals in ped to show phenotype
     for ii, anc_set in enumerate(ancestor_sets):
         if YY[ii] == 1:
-            if len(anc_set) == 1: # affected founders are possible originators
+            if len(anc_set) == 0: # if we somehow get an individual with zero ancestors (including itself)
                 originator_set.append(ii)
             else: # affected individuals with any affected parents are not originators
                 originator = True
@@ -387,7 +442,6 @@ def possible_dominant(fam, YY):
     """Calculate whether compatible with dominant Mendelian transmission of a single allele.
     given a family dictionary and binary phenotype vector.
     """
-
     possible_mend_originators = possible_originators(fam, YY)
     if len(possible_mend_originators) == 0:
         return False
